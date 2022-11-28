@@ -132,18 +132,18 @@ def run(user_settings):
             tc_filename = s.two_gauss_mc_input_file,
             baseline_fit_range = s.baseline_fit_range,
             baseline_fit_type = s.baseline_subtract,
-            v_esc = s.escape_velocity, disk_sigma=s.average_disk_sigma, line=s.line)
+            v_esc = s.escape_velocity, disk_sigma=s.average_disk_sigma, line=s.line,
+            monitor_pixels=[],
+            plot_fits=False)
     else:
-
-        for pix in s.monitor_pixels:
-            residuals, disk_turb_flux, fountain_flux, escape_flux = calc_vc.main_one_spaxel(
-                cube = s.cube,
-                tc_filename = s.two_gauss_mc_input_file,
-                i = pix[0],
-                j = pix[1],
-                baseline_fit_range = s.baseline_fit_range,
-                baseline_fit_type = s.baseline_subtract,
-                v_esc = s.escape_velocity, disk_sigma=s.average_disk_sigma, line=s.line)
+        residuals, vel_cuts_dict = calc_vc.main(
+            cube = s.cube,
+            tc_filename = s.two_gauss_mc_input_file,
+            baseline_fit_range = s.baseline_fit_range,
+            baseline_fit_type = s.baseline_subtract,
+            v_esc = s.escape_velocity, disk_sigma=s.average_disk_sigma, line=s.line,
+            monitor_pixels=s.monitor_pixels,
+            plot_fits=True)
 
 
     #print some stuff
