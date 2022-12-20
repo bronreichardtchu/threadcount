@@ -579,26 +579,34 @@ def plot_data_minus_gal(wave, spec, residuals, gal_dict, i, j):
     flow_gauss = gmodel.eval(params, x=wave)
 
     #create the interpolated model
-    model_x = np.linspace(gal_center[i,j]-15, gal_center[i,j]+15,500)
-    model_mask = (wave>gal_center[i,j]-15) & (wave<gal_center[i,j]+15)
-    model_interp = np.interp(model_x, wave[model_mask], gal_gauss[model_mask]+flow_gauss[model_mask]+const[i,j])
+    try:
+        model_x = np.linspace(gal_center[i,j]-15, gal_center[i,j]+15,500)
+        model_mask = (wave>gal_center[i,j]-15) & (wave<gal_center[i,j]+15)
+        model_interp = np.interp(model_x, wave[model_mask], gal_gauss[model_mask]+flow_gauss[model_mask]+const[i,j])
+    except ValueError:
+        model_x = np.linspace(gal_center[i,j]-15, gal_center[i,j]+15,500)
+        model_interp = np.zeros_like(model_x)
 
     #plot the things
     fig = plt.figure()
 
-    plt.step(wave, spec, where='mid', c='k', label='data')
+    try:
+        plt.step(wave, spec, where='mid', c='k', label='data')
 
-    plt.step(wave, gal_gauss+const[i,j], where='mid', c='g', ls='--', label='galaxy gaussian')
-    plt.step(wave, flow_gauss+const[i,j], where='mid', c='b', ls='--', label='outflow gaussian')
+        plt.step(wave, gal_gauss+const[i,j], where='mid', c='g', ls='--', label='galaxy gaussian')
+        plt.step(wave, flow_gauss+const[i,j], where='mid', c='b', ls='--', label='outflow gaussian')
 
-    #plt.plot(wave, gal_gauss+flow_gauss+const[i,j], c='grey', ls=':', label='model fit')
-    plt.plot(model_x, model_interp, c='grey', ls=':', label='total model fit')
+        #plt.plot(wave, gal_gauss+flow_gauss+const[i,j], c='grey', ls=':', label='model fit')
+        plt.plot(model_x, model_interp, c='grey', ls=':', label='total model fit')
 
-    #plt.step(wave, residuals, where='mid', c='r', label='data - galaxy')
+        #plt.step(wave, residuals, where='mid', c='r', label='data - galaxy')
 
-    plt.xlim(gal_center[i,j]-10, gal_center[i,j]+10)
+        plt.xlim(gal_center[i,j]-10, gal_center[i,j]+10)
 
-    plt.xlabel('Wavelength [$\AA$]')
+        plt.xlabel('Wavelength [$\AA$]')
+
+    except ValueError:
+        plt.text(0.5, 0.5, "No Fits", horizontalalignment="center", verticalalignment="center", transform=plt.gca().transAxes, fontsize=14)
 
     plt.title('Data and Galaxy Gaussian-subtracted residual ('+str(i)+', '+str(j)+')')
 
