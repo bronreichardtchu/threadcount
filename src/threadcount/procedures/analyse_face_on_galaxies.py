@@ -532,6 +532,9 @@ def calc_average_disk_height(gal_dict, sigma_star):
     Calculates the average disk height using the velocity dispersion from the
     threadcount fits
     """
+    #give the stellar mass units
+    sigma_star = sigma_star * units.solMass
+
     #get the fitted galaxy sigma
     gal_sigma, gal_sigma_err, flow_sigma, flow_sigma_err = calc_sfr.get_arrays(gal_dict, var_string='sigma')
 
