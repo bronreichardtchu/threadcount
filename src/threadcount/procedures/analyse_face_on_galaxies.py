@@ -639,60 +639,26 @@ def plot_velocity_cut_maps(settings_array, mid_velocity_array, high_velocity_arr
         high_vel_masked = ma.masked_where(high_velocity_array<0, high_velocity_array)
 
     #crop the data
-    if crop_data:
-        noise = noise[crop_data[0]:crop_data[1], crop_data[2]:crop_data[3]]
-        gal_flux = gal_flux[crop_data[0]:crop_data[1], crop_data[2]:crop_data[3]]
-        flow_flux = flow_flux[crop_data[0]:crop_data[1], crop_data[2]:crop_data[3]]
-        mid_vel_masked = mid_vel_masked[crop_data[0]:crop_data[1], crop_data[2]:crop_data[3]]
-        high_vel_masked = high_vel_masked[crop_data[0]:crop_data[1], crop_data[2]:crop_data[3]]
+    if settings_array.crop_data:
+        #gal_flux = gal_flux[crop_data[0]:crop_data[1], crop_data[2]:crop_data[3]]
+        #flow_flux = flow_flux[crop_data[0]:crop_data[1], crop_data[2]:crop_data[3]]
+        mid_vel_masked = mid_vel_masked[settings_array.crop_data[0]:settings_array.crop_data[1], settings_array.crop_data[2]:settings_array.crop_data[3]]
+        high_vel_masked = high_vel_masked[settings_array.crop_data[0]:settings_array.crop_data[1], settings_array.crop_data[2]:settings_array.crop_data[3]]
+        sigma_sfr = sigma_sfr[settings_array.crop_data[0]:settings_array.crop_data[1], settings_array.crop_data[2]:settings_array.crop_data[3]]
 
-    #do a S/N check
-    #mid_vel_masked
-
-
-
-    #fig, ax = plt.subplots(1, 3, figsize=(9,3), constrained_layout=True)
-    fig = plt.figure(figsize=(10,2.5), constrained_layout=True)
-
-    #ax1 = plt.subplot(131)
-    #im = ax1.imshow(np.log10(gal_flux.T), origin='lower', aspect=wcs_step[1]/wcs_step[0], cmap='viridis', vmax=4)
-    #ax1.contour(np.log10(gal_flux).T, levels=7, origin='lower', colors='k', alpha=0.8)
-    #ax1.set_title('Galaxy Component Flux', fontsize='small')
-    #cbar = plt.colorbar(im, ax=ax1, shrink=0.6)
-    #cbar.set_label('Log Flux [10$^{-16}$ erg/(cm2 s)]', fontsize='small')
-
-    ax1 = plt.subplot(131)
-    #im = ax1.imshow(np.log10(flow_flux.T), origin='lower', aspect=wcs_step[1]/wcs_step[0], cmap=cmr.cosmic, vmax=2.2)
-    im = ax1.imshow(np.log10(flow_flux.T), origin='lower', aspect=wcs_step[1]/wcs_step[0], cmap='viridis', vmax=2.2, vmin=-0.5)
-    ax1.contour(np.log10(gal_flux).T, levels=[0.6, 1.0, 1.5], origin='lower', colors='k', alpha=0.8)
-    #ax1.contour(np.log10(gal_flux).T, origin='lower', colors='k', alpha=0.8)
-    ax1.invert_xaxis()
-    ax1.set_title('Broad Component Flux', fontsize='small')
-    ax1.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, right=False, left=False, labelleft=False)
-    cbar = plt.colorbar(im, ax=ax1, shrink=0.8)
-    cbar.set_label('Log Flux [10$^{-16}$ erg/(cm2 s)]', fontsize='small')
+    #create the figure
+    fig_maps, ax_maps = plt.subplots(1, 3, sharex=True, sharey=True,
+            figsize=(9,3), constrained_layout=True)
 
 
-    ax2 = plt.subplot(132)
-    im = ax2.imshow(np.log10(mid_vel_masked.T), origin='lower', aspect=wcs_step[1]/wcs_step[0], cmap='viridis', vmax=2.2, vmin=-0.5)
-    ax2.contour(np.log10(gal_flux).T, levels=[0.6, 1.0, 1.5], origin='lower', colors='k', alpha=0.8)
-    ax2.invert_xaxis()
-    ax2.set_title('$\sigma_{disk}$ < v < $v_{high}$', fontsize='small')
-    ax2.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, right=False, left=False, labelleft=False)
-    cbar = plt.colorbar(im, ax=ax2, shrink=0.8)
-    cbar.set_label('Log Flux [10$^{-16}$ erg/(cm2 s)]', fontsize='small')
+    #map the things
+    _map_flux(ax_maps[0], sigma_sfr, settings_array.wcs_step, r'Log $\Sigma_{\rm SFR}$ [M$_\odot$ yr$^{-1}$ kpc$^{-2}$]', radius_array=None, rad_to_plot=settings_array.effective_radius, vmin=-2.7, vmax=0.5)#vmin=-2.5, vmax=0.5)#vmin=-2.0, vmax=0.7)# #-2.7, -0.5
 
+    _map_flux(ax_maps[1], mid_vel_masked, settings_array.wcs_step, r'Log Flux$_{\rm mid vel}$ [10$^{-16}$ erg/(cm2 s)]', contour_array=sigma_sfr, radius_array=None, rad_to_plot=settings_array.effective_radius, vmin=-1.5, vmax=1.5)#vmin=-0.7, vmax=2.5)# #-0.8, 1.6
 
-    ax3 = plt.subplot(133)
-    im = ax3.imshow(np.log10(high_vel_masked.T), origin='lower', aspect=wcs_step[1]/wcs_step[0], cmap='viridis', vmax=2.2, vmin=-0.5)
-    ax3.contour(np.log10(gal_flux).T, levels=[0.6, 1.0, 1.5], origin='lower', colors='k', alpha=0.8)
-    ax3.invert_xaxis()
-    ax3.set_title('v > $v_{high}$', fontsize='small')
-    ax3.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, right=False, left=False, labelleft=False)
-    cbar = plt.colorbar(im, ax=ax3, shrink=0.8)
-    cbar.set_label('Log Flux [10$^{-16}$ erg/(cm2 s)]', fontsize='small')
+    _map_flux(ax_maps[2], high_vel_masked, settings_array.wcs_step, r'Log Flux$_{\rm high vel}$ [10$^{-16}$ erg/(cm2 s)]', contour_array=sigma_sfr, radius_array=None, rad_to_plot=settings_array.effective_radius, vmin=-1.5, vmax=1.5)#vmin=-0.7, vmax=2.5)
 
 
     plt.suptitle(title)
 
-    return fig
+    return fig_maps
