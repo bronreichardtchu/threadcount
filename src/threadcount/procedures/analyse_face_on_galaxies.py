@@ -618,7 +618,15 @@ def plot_velocity_cut_maps(settings_array, mid_velocity_array, high_velocity_arr
         e.g. [2, -1, 3, -2] will map data[2:-1, 3:-2]
     """
     #get the flux values
-    gal_flux, gal_flux_err, flow_flux, flow_flux_err = calc_sfr.get_arrays(gal_dict, var_string='flux')
+    #gal_flux, gal_flux_err, flow_flux, flow_flux_err = calc_sfr.get_arrays(gal_dict, var_string='flux')
+
+    set_rcParams.set_params({"axes.facecolor": 'none'})
+
+    #calculate the sfr surface density
+    if "Hb" not in settings_array.line.label:
+        sfr, sfr_err, total_sfr, sigma_sfr, sigma_sfr_err = calc_sfr.calc_sfr(tc_data_hbeta, settings_array.z, settings_array.wcs_step, include_outflow=False, Av=settings_array.Av_array)
+    else:
+        sfr, sfr_err, total_sfr, sigma_sfr, sigma_sfr_err = calc_sfr.calc_sfr(settings_array.tc_dict, settings_array.z, settings_array.wcs_step, include_outflow=False, Av=settings_array.Av_array)
 
     #low_vel_masked = ma.masked_where(low_velocity_array<0, low_velocity_array)
     try:
