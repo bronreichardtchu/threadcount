@@ -339,7 +339,15 @@ def data_coords(gal_dict, z, wcs_step, shiftx=None, shifty=None):
     else:
         flux_results, flux_error, outflow_flux, outflow_flux_err = calc_sfr.get_arrays(gal_dict, var_string='flux')
 
-        i, j = np.unravel_index(np.nanargmax(flux_results), flux_results.shape)
+        #i, j = np.unravel_index(np.nanargmax(flux_results), flux_results.shape)
+
+        #turn the flux results into an mpdaf image object
+        wcs1 = WCS(crval=0, cd=np.array([[0.0, wcs_step[0]],[wcs_step[1],0.0]]), deg=True)
+        flux_image = Image(data=flux_results, wcs=wcs1)
+
+        #find the centre of the galaxy by fitting a 2D gaussian model
+        gfit = flux_image.gauss_fit(plot=False, unit_center=None)
+        i, j = gfit.center
 
         shiftx = i*wcs_step[0]
         shifty = j*wcs_step[1]
