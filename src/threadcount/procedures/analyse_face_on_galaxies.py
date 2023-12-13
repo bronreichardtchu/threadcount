@@ -117,7 +117,8 @@ def run(user_settings):
         #this uses the assumed redshift from settings, or if you've used tc_data
         #to calculate the effective_radius it uses the z found in threadcount
         print("redshift:", s.z_set)
-        s.escape_velocity = calc_vc.calculate_escape_velocity(s.effective_radius, s.stellar_mass, s.z_set)
+        #s.escape_velocity = calc_vc.calculate_escape_velocity(s.effective_radius, s.stellar_mass, s.z_set)
+        s.escape_velocity = calc_vc.calculate_high_velocity(s.stellar_mass)
 
     if s.average_disk_sigma is None:
         #use the threadcount output to find the average disk sigma
@@ -139,8 +140,7 @@ def run(user_settings):
         #get rid of stuff we don't need out of memory
         del tc_data, gal_sigma, gal_center, gal_sigma_vel
 
-    print('escape velocity:', s.escape_velocity)
-    print('average disk sigma:', s.average_disk_sigma)
+
 
     if len(s.monitor_pixels) == 0:
         residuals, vel_cuts_dict = calc_vc.main(
@@ -163,6 +163,15 @@ def run(user_settings):
 
 
     #print some stuff
+    print('escape velocity:', s.escape_velocity)
+    print('average disk sigma:', s.average_disk_sigma)
+    #give the radius units
+    radius = s.effective_radius * units.arcsec
+    #convert to kpc
+    #get the proper distance per arcsecond
+    proper_dist = cosmo.kpc_proper_per_arcmin(s.z).to(units.kpc/units.arcsec)
+    radius = radius * proper_dist
+    print("radius for escape velocity:", radius)
     print('Residuals type', type(residuals))
     print('Residuals shape', residuals.shape)
     print('Fountain flux type', type(vel_cuts_dict['low_velocity_outflow']))
