@@ -12,7 +12,9 @@ import numpy.ma as ma
 import matplotlib.pyplot as plt
 #from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from mpdaf.obj import Image, gauss_image
+from types import SimpleNamespace
+
+from mpdaf.obj import Image, gauss_image, WCS
 from astropy import units
 from astropy.constants import G
 from astropy.cosmology import WMAP9 as cosmo
