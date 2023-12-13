@@ -185,85 +185,94 @@ def run(user_settings):
 
     #run through the plotting scripts
     if s.plot_results == True:
-        #read in the threadcount results
-        tc_data, wcs_step, z = calc_vc.read_in_threadcount_dict(s.two_gauss_mc_input_file)
-
-        #read in the data file
-        cube = calc_vc.fits_read_in(s.data_filename)
-
-        #calculate the noise cube
-        #get the spectral pixel indexes of wavelengths
-        k1, k2 = cube.wave.pixel([4700, 4800], nearest=True)
-        noise = np.nanstd(cube.data[k1:k2+1, :, :], axis=0)
-
-        fig = plot_velocity_cut_maps(vel_cuts_dict['low_velocity_outflow'], vel_cuts_dict['high_velocity_outflow'], tc_data, noise, v_esc=s.escape_velocity, disk_sigma=s.average_disk_sigma, title=s.gal_name+' '+s.line.label, wcs_step=wcs_step, crop_data=s.crop_data)
-
-        plt.show(block=False)
+        make_plots(s)
+        
 
 
 
-def run_plots_only(user_settings):
-    #the inputs that will be used if there are no command line arguments
-    default_settings = {
-        # need the continuum subtracted data fits file for the velocity cuts method
-        "data_filename" : "ex_gal_fits_file.fits",
-        "two_gauss_mc_input_file" : "ex_4861_mc_best_fit.txt",
-        "gal_name" : "example_galaxy_name", #used for labelling plots
-        "z" : 0.03, # redshift
-        # now for some default fitting details
-        "line" : tc.lines.L_Hb4861,
-        "baseline_subtract" : None, # baseline can be "quadratic" or "linear" or None
-        # the range of wavelengths to use in the baseline subtraction
-        "baseline_fit_range" : [
-                            ], # a list of: [[left_begin, left_end],[right_begin, right_end]], one for each line
-        # also need the stellar mass of the galaxy
-        "stellar_mass" : 10**11.21, # MUST BE INCLUDED
-        # we need the escape velocity for the data
-        # either this is a given parameter, or threadcount can work it out if
-        # you give it data to use to calculate the effective radius
-        "escape_velocity" : 456 * units.km/units.s, # put as None if you don't know
-        # either give the effective radius, or the threadcount output will
-        # be used to find an effective radius, which assumes that the entire
-        # galaxy is within the field of view for the IFU data
-        "effective_radius" : None, # in arcseconds, used to calculate the escape
-        # velocity, so doesn't technically need to be v_50
-        # alternatively, you can give another data image (e.g. PANSTARRs) to use
-        # to find the effective radius
-        "image_data_filename" : "ex_image_file.fits", #or put as None
-        # escape_velocity MUST BE NONE IF YOU WANT TO CALCULATE IT FROM THE
-        # IMAGE DATA FILE GIVEN ABOVE
-        "average_disk_sigma" : None, # if None will use the threadcount fits to find average_disk_sigma.
-        # output options
-        "output_base_name" : "ex_velocity_cuts_results", # saved files will begin with this
-        "plot_results" : True, #boolean
-        "crop_data" : None, # Use to define how much of the data goes into the maps in the
-        # format: [axis1_begin, axis1_end, axis2_begin, axis2_end] or None
-        # e.g. [2, -1, 3, -2] will map data[2:-1, 3:-2]
-    }
+def make_plots(user_settings):
+    #check that the input wasn't a SimpleNamespace
+    if type(user_settings) == SimpleNamespace:
+        user_settings = user_settings.__dict__
+
     # s for settings
     s = tc.fit.process_settings_dict(default_settings, user_settings)
 
-    #read in the data file
-    cube = calc_vc.fits_read_in(s.data_filename)
-
-    #calculate the noise cube
-    #get the spectral pixel indexes of wavelengths
-    k1, k2 = cube.wave.pixel([4700, 4800], nearest=True)
-    noise = np.nanstd(cube.data[k1:k2+1, :, :], axis=0)
-
     #read in velocity cuts results
-    #disk_turb_flux = np.loadtxt(s.output_base_name+'_'+str(s.line.center)+'_disk_turbulence_flux.txt')
-    #fountain_flux = np.loadtxt(s.output_base_name+'_'+str(s.line.center)+'_fountain_gas_flux.txt')
-    #escape_flux = np.loadtxt(s.output_base_name+'_'+str(s.line.center)+'_escaping_gas_flux.txt')
-
-    vel_cuts_dict = tc.fit.ResultDict.loadtxt(s.output_base_name+'_'+str(s.line.center)+'_vel_cuts_dict.txt')
+    vel_cuts_dict = tc.fit.ResultDict.loadtxt(s.output_base_name+'_'+str(s.line.label)+'_vel_cuts_dict.txt')
 
     #read in the threadcount results
     tc_data, wcs_step, z = calc_vc.read_in_threadcount_dict(s.two_gauss_mc_input_file)
 
+    s.tc_dict = tc_data
+    s.wcs_step = wcs_step
+
+    xx, yy, rad = data_coords(tc_data, z, wcs_step, shiftx=s.shiftx, shifty=s.shifty)
+
+    s.radius_array = rad
+
+    #read in the Av array for the extinction values
+    if s.Av_array_filename != None:
+        print('Loading Av array')
+        Av_array = np.loadtxt(s.Av_array_filename)
+    else:
+        Av_array = None
+
+    s.Av_array = Av_array
+
+    #if we're not looking at the fits to Hbeta, read in Hbeta so we can calculate SFR
+    if "Hb" not in s.line.label:
+        tc_data_hbeta, wcs_step, z = calc_vc.read_in_threadcount_dict(s.output_filename+'_4861_mc_best_fit.txt')
+
+    #print some stuff
+    gal_flux, gal_flux_err, flow_flux, flow_flux_err = calc_sfr.get_arrays(tc_data, var_string='flux')
+
+    print('=====================')
+    print('Galaxy:', s.gal_name)
+    print('=====================')
+    flux_ratio = np.nansum(vel_cuts_dict['high_velocity_outflow'])/np.nansum(gal_flux)
+    print('High velocity gas to galaxy flux ratio:',
+                flux_ratio,
+                '+/-',
+                #calculate the uncertainty
+                #flux ratio * sqrt( var/high_vel^2 + (gal_flux_err/gal_flux)^2 )
+                (flux_ratio) * np.sqrt(np.nansum(vel_cuts_dict['high_velocity_var'])/np.nansum(vel_cuts_dict['high_velocity_outflow'])**2 + (np.nansum(gal_flux_err)/np.nansum(gal_flux))**2)
+                )
+
+    flux_ratio = np.nansum(vel_cuts_dict['low_velocity_outflow'])/np.nansum(gal_flux)
+    print('Fountain velocity gas to galaxy flux ratio:',
+                flux_ratio,
+                '+/-',
+                #calculate the uncertainty
+                #flux ratio * sqrt( var/low_vel^2 + (gal_flux_err/gal_flux)^2 )
+                (flux_ratio) * np.sqrt(np.nansum(vel_cuts_dict['low_velocity_var'])/np.nansum(vel_cuts_dict['low_velocity_outflow'])**2 + (np.nansum(gal_flux_err)/np.nansum(gal_flux))**2)
+                )
+    print('')
+
+    flux_ratio = np.nansum(vel_cuts_dict['high_velocity_outflow'])/(np.nansum(vel_cuts_dict['low_velocity_outflow'])+np.nansum(vel_cuts_dict['high_velocity_outflow']))
+    print('High velocity gas to total outflow flux ratio:',
+                flux_ratio,
+                '+/-',
+                #calculate the uncertainty
+                #flux ratio * sqrt( var/high_vel^2 + (var_low+var_high)/(low_vel+high_vel)^2 )
+                (flux_ratio) * np.sqrt(np.nansum(vel_cuts_dict['high_velocity_var'])/np.nansum(vel_cuts_dict['high_velocity_outflow'])**2 + (np.nansum(vel_cuts_dict['low_velocity_var'])+np.nansum(vel_cuts_dict['high_velocity_var']))/(np.nansum(vel_cuts_dict['low_velocity_outflow'])+np.nansum(vel_cuts_dict['high_velocity_outflow']))**2)
+                )
+
+    flux_ratio = np.nansum(vel_cuts_dict['low_velocity_outflow'])/(np.nansum(vel_cuts_dict['low_velocity_outflow'])+np.nansum(vel_cuts_dict['high_velocity_outflow']))
+    print('Fountain velocity gas to total outflow flux ratio:',
+                flux_ratio,
+                '+/-',
+                #calculate the uncertainty
+                #flux ratio * sqrt( var/low_vel^2 + (var_low+var_high)/(low_vel+high_vel)^2 )
+                (flux_ratio) * np.sqrt(np.nansum(vel_cuts_dict['low_velocity_var'])/np.nansum(vel_cuts_dict['low_velocity_outflow'])**2 + (np.nansum(vel_cuts_dict['low_velocity_var'])+np.nansum(vel_cuts_dict['high_velocity_var']))/(np.nansum(vel_cuts_dict['low_velocity_outflow'])+np.nansum(vel_cuts_dict['high_velocity_outflow']))**2)
+                )
+
 
     #run through the plotting scripts
-    fig = plot_velocity_cut_maps(vel_cuts_dict['low_velocity_outflow'], vel_cuts_dict['high_velocity_outflow'], tc_data, noise, v_esc=s.escape_velocity, disk_sigma=s.average_disk_sigma, title=s.gal_name+' '+s.line.label, wcs_step=wcs_step, crop_data=s.crop_data)
+    if "Hb" not in s.line.label:
+        fig = plot_velocity_cut_maps(s, vel_cuts_dict['low_velocity_outflow'], vel_cuts_dict['high_velocity_outflow'], title=s.gal_name+' '+s.line_label, tc_data_hbeta=tc_data_hbeta)
+    else:
+        fig = plot_velocity_cut_maps(s, vel_cuts_dict['low_velocity_outflow'], vel_cuts_dict['high_velocity_outflow'], title=s.gal_name+' '+s.line_label, tc_data_hbeta=None)
 
     plt.show(block=False)
 
