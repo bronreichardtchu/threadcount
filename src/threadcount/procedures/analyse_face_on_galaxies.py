@@ -179,9 +179,9 @@ def run(user_settings):
     print('Escape flux shape', vel_cuts_dict['high_velocity_outflow'].shape)
 
     #save the results - OVERWRITES ANY EXISTING FILES
-    residuals.write(s.output_base_name+'_'+str(s.line.center)+'_residuals.fits')
+    residuals.write(s.output_base_name+'_'+str(s.line.label)+'_residuals.fits')
 
-    vel_cuts_dict.savetxt(s.output_base_name+'_'+str(s.line.center)+'_vel_cuts_dict.txt')
+    vel_cuts_dict.savetxt(s.output_base_name+'_'+str(s.line.label)+'_vel_cuts_dict.txt')
 
     #run through the plotting scripts
     if s.plot_results == True:
