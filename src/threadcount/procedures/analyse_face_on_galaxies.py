@@ -558,7 +558,54 @@ def calc_average_disk_height(gal_dict, sigma_star):
 # PLOTS
 #-------------------------------------------------------------------------------
 
-def plot_velocity_cut_maps(mid_velocity_array, high_velocity_array, gal_dict, noise, v_esc=300, disk_sigma=60, title='Gal Name Line', wcs_step=[1,1], crop_data=None):
+def _map_flux(ax, flux_array, wcs_step, cbar_label, contour_array=None, radius_array=None, rad_to_plot=None, vmin=None, vmax=None):
+    """
+    Maps the flux onto the axis
+    """
+    try:
+        im = ax.imshow(np.log10(flux_array.T), origin='lower', aspect=wcs_step[1]/wcs_step[0], cmap=cmr.gem, vmin=vmin, vmax=vmax)
+    except:
+        im = ax.imshow(np.log10(flux_array.value).T, origin='lower', aspect=wcs_step[1]/wcs_step[0], cmap=cmr.gem, vmin=vmin, vmax=vmax)
+
+    #make the colourbar
+    cbar = plt.colorbar(im, ax=ax, shrink=0.7)
+    cbar.set_label(cbar_label, fontsize='small')
+
+    #make the contours
+    if contour_array == None:
+        try:
+            contour_array = np.log10(flux_array)
+        except:
+            contour_array = np.log10(flux_array.value)
+    else:
+        try:
+            contour_array = np.log10(contour_array)
+        except:
+            contour_array = np.log10(contour_array.value)
+
+    extent = (-1, flux_array.shape[0], -1, flux_array.shape[1])
+    cs = ax.contour(contour_array.T, levels=1, origin='lower', extent=extent, colors='k', alpha=0.7)
+
+
+    for c in cs.collections:
+        c.set_linestyle('solid')
+
+    #plot the radius
+    #if rad_to_plot is given, it's just one contour
+    if radius_array is not None:
+        if rad_to_plot == None:
+            cs = ax.contour(radius_array.T, origin='lower', extent=extent, colors='k', alpha=0.7)
+        else:
+            cs = ax.contour(radius_array.T, levels=[rad_to_plot], origin='lower', extent=extent, colors='k', alpha=0.7)
+
+    #invert xaxis
+    ax.invert_xaxis()
+
+    #turn off tick labels
+    ax.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, right=False, left=False, labelleft=False)
+
+
+def plot_velocity_cut_maps(settings_array, mid_velocity_array, high_velocity_array, title='Gal Name Line', tc_data_hbeta=None):
     """
     Makes maps of the velocity cuts
 
