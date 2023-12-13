@@ -29,46 +29,60 @@ from threadcount.procedures import open_cube_and_deredshift
 
 
 
+#the inputs that will be used if there are no command line arguments
+default_settings = {
+    # need the continuum subtracted data fits file for the velocity cuts method
+    "data_filename" : "ex_gal_fits_file.fits",
+    "two_gauss_mc_input_file" : "ex_4861_mc_best_fit.txt",
+    "gal_name" : "example_galaxy_name", #used for labelling plots
+    "line_label" : r"H$\beta$", #used for labelling plots
+    "z" : 0.03, # redshift
+    "monitor_pixels" : [], # pixels to monitor - if this has length greater
+    #than zero, then only these fits are created, and the plots are shown
+    # now for some default fitting details
+    "line" : tc.lines.L_Hb4861,
+    "baseline_subtract" : None, # baseline can be "quadratic" or "linear" or None
+    # the range of wavelengths to use in the baseline subtraction
+    "baseline_fit_range" : [
+                        ], # a list of: [[left_begin, left_end],[right_begin, right_end]], one for each line
+    # also need the stellar mass of the galaxy
+    "stellar_mass" : 10**11.21, # MUST BE INCLUDED
+    # we need the escape velocity for the data
+    # either this is a given parameter, or threadcount can work it out if
+    # you give it data to use to calculate the effective radius
+    "escape_velocity" : 456 * units.km/units.s, # put as None if you don't know
+    # either give the effective radius, or the threadcount output will
+    # be used to find an effective radius, which assumes that the entire
+    # galaxy is within the field of view for the IFU data
+    "effective_radius" : None, # in arcseconds, used to calculate the escape
+    # velocity, so doesn't technically need to be v_50
+    # alternatively, you can give another data image (e.g. PANSTARRs) to use
+    # to find the effective radius
+    "image_data_filename" : "ex_image_file.fits", #or put as None
+    # escape_velocity MUST BE NONE IF YOU WANT TO CALCULATE IT FROM THE
+    # IMAGE DATA FILE GIVEN ABOVE
+    "Av_array_filename" : None, # the location of the file with the
+    # extinction Av array - if None, will assume the data has been
+    # extinction corrected already when calculating SFR
+    "average_disk_sigma" : None, # if None will use the threadcount fits to find average_disk_sigma.
+    # output options
+    "output_base_name" : "ex_velocity_cuts_results", # saved files will begin with this
+    "plot_results" : True, #boolean
+    "crop_data" : None, # Use to define how much of the data goes into the maps in the
+    # format: [axis1_begin, axis1_end, axis2_begin, axis2_end] or None
+    # e.g. [2, -1, 3, -2] will map data[2:-1, 3:-2]
+    "shiftx" : None, # hardcoded shift in the x direction for the coord arrays
+    #(in arcseconds). If this is none, it finds the maximum point of the flux
+    #from the threadcount fits and makes this the centre.  Default is None.
+    "shifty" : None, # hardcoded shift in the y direction for the coord arrays
+    #(in arcseconds). If this is none, it finds the maximum point of the flux
+    #from the threadcount fits and makes this the centre.  Default is None.
+}
+
+
+
+
 def run(user_settings):
-    #the inputs that will be used if there are no command line arguments
-    default_settings = {
-        # need the continuum subtracted data fits file for the velocity cuts method
-        "data_filename" : "ex_gal_fits_file.fits",
-        "two_gauss_mc_input_file" : "ex_4861_mc_best_fit.txt",
-        "gal_name" : "example_galaxy_name", #used for labelling plots
-        "z" : 0.03, # redshift
-        "monitor_pixels" : [], # pixels to monitor - if this has length greater
-        #than zero, then only these fits are created, and the plots are shown
-        # now for some default fitting details
-        "line" : tc.lines.L_Hb4861,
-        "baseline_subtract" : None, # baseline can be "quadratic" or "linear" or None
-        # the range of wavelengths to use in the baseline subtraction
-        "baseline_fit_range" : [
-                            ], # a list of: [[left_begin, left_end],[right_begin, right_end]], one for each line
-        # also need the stellar mass of the galaxy
-        "stellar_mass" : 10**11.21, # MUST BE INCLUDED
-        # we need the escape velocity for the data
-        # either this is a given parameter, or threadcount can work it out if
-        # you give it data to use to calculate the effective radius
-        "escape_velocity" : 456 * units.km/units.s, # put as None if you don't know
-        # either give the effective radius, or the threadcount output will
-        # be used to find an effective radius, which assumes that the entire
-        # galaxy is within the field of view for the IFU data
-        "effective_radius" : None, # in arcseconds, used to calculate the escape
-        # velocity, so doesn't technically need to be v_50
-        # alternatively, you can give another data image (e.g. PANSTARRs) to use
-        # to find the effective radius
-        "image_data_filename" : "ex_image_file.fits", #or put as None
-        # escape_velocity MUST BE NONE IF YOU WANT TO CALCULATE IT FROM THE
-        # IMAGE DATA FILE GIVEN ABOVE
-        "average_disk_sigma" : None, # if None will use the threadcount fits to find average_disk_sigma.
-        # output options
-        "output_base_name" : "ex_velocity_cuts_results", # saved files will begin with this
-        "plot_results" : True, #boolean
-        "crop_data" : None, # Use to define how much of the data goes into the maps in the
-        # format: [axis1_begin, axis1_end, axis2_begin, axis2_end] or None
-        # e.g. [2, -1, 3, -2] will map data[2:-1, 3:-2]
-    }
     #test if the cube has been opened.  If not, open cube and deredshift
     if "cube" not in user_settings.keys():
         user_settings = open_cube_and_deredshift.run(user_settings)
