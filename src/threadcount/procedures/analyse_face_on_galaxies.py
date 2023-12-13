@@ -411,17 +411,27 @@ def calc_effective_radius_tc(gal_dict, radius_array, flux_percentage=50):
             return effective_radius
 
 
-def calc_effective_radius_fits(fits_filename, fits_ext='COMPRESSED_IMAGE', flux_percentage=50):
+def calc_effective_radius_fits(fits_filename, fits_ext=None, flux_percentage=50):
     """
     Reads in an image fits file (e.g. PANSTARRs) and then calculates the
     effective radius (default) of the galaxy using the summed flux, but can
     also be used to calculate e.g. r_75 or r_90
+
+    Parameters
+    ----------
+    fits_filename : str
+        the data filename (.fits, .png or .bmp)
+    fits_ext : int or(int,int) or string or (string,string)
+        Number/name of the data extension or numers/names of the data and
+        variance extensions. e.g. 'COMPRESSED_IMAGE', 'SCI'.  Default is None.
+    flux_percentage : float
+        the percentage of the flux included within the radius
     """
     #read in the fits file
     gal = Image(fits_filename, ext=fits_ext)
 
     #find the centre of the galaxy by fitting a 2D gaussian model
-    gfit = gal.gauss_fit(plot=False)
+    gfit = gal.gauss_fit(plot=False, unit_center=None)
     gal_center = gfit.center
 
     #get the data shape
@@ -431,15 +441,15 @@ def calc_effective_radius_fits(fits_filename, fits_ext='COMPRESSED_IMAGE', flux_
     x = np.arange(s[0]) #RA
     y = np.arange(s[1]) #DEC
 
+    #shift the x and y by the galaxy centre value
+    x = x - gal_center[0]
+    y = y - gal_center[1]
+
     #multiply through by wcs_step values
     x = x*gal.get_step(unit=units.arcsec)[0]
     y = y*gal.get_step(unit=units.arcsec)[1]
 
     print("x shape, y shape:", x.shape, y.shape)
-
-    #shift the x and y by the galaxy centre value
-    x = x - gal_center[0]
-    y = y - gal_center[1]
 
     #create x and y arrays
     xx, yy = np.meshgrid(x,y, indexing='ij')
@@ -449,25 +459,29 @@ def calc_effective_radius_fits(fits_filename, fits_ext='COMPRESSED_IMAGE', flux_
     #create radius array
     radius_array = np.sqrt(xx**2+yy**2)
 
+    #turn all flux below the "continuum" to nan values
+    gal.data[gal.data<gfit.cont] = np.nan
+
     #get the total flux
     total_flux = np.nansum(gal.data)
+    #total_flux = gfit.flux
 
     #get the half flux (or whatever percentage of the flux you wanted)
     effective_flux = total_flux * (flux_percentage/100)
     print('Looking for effective flux:', effective_flux)
 
     #get the unique radii from the radius array so we can iterate through them
-    #unique_rad = np.unique(radius_array)
+    unique_rad = np.unique(np.around(radius_array, decimals=2))
 
     #get the maximum radius
-    max_rad = np.nanmax(radius_array)
+    #max_rad = np.nanmax(radius_array)
 
     #create an array of radii to iterate through
-    unique_rad = np.linspace(0, max_rad, 100)
+    #unique_rad = np.linspace(0, max_rad, 100)
 
     #iterate through the available radii and add up the flux
     for i, radius in enumerate(unique_rad):
-        #calcualte the enclosed flux
+        #calculate the enclosed flux
         enclosed_flux = np.nansum(gal.data[radius_array<=radius])
 
         #calculate the percentage of the total flux enclosed
