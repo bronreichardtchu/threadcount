@@ -63,6 +63,8 @@ def get_arrays(galaxy_dictionary, var_string):
     Uses the dictionary from threadcount to create arrays of the variable for the
     outflow and galaxy gaussians.
 
+    NOTE:  This assumes only two gaussians have been fit!!!
+
     Parameters
     ----------
     galaxy_dictionary : dictionary
