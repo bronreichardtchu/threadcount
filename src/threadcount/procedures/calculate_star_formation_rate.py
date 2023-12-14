@@ -172,7 +172,7 @@ def calc_sfr(galaxy_dictionary, z, wcs_step, include_outflow=False, Av=None):
     """
     #first we need to define C_Halpha, using Hao et al. 2011 ApJ 741:124
     #From table 2, uses a Kroupa IMF, solar metallicity and 100Myr
-    c_halpha = 10**(-41.257)
+    c_halpha = (10**(-41.257))*(units.solMass/units.year)*(units.s/units.erg)
 
     #from Calzetti 2001 PASP 113 we have L_Halpha/L_Hbeta = 2.87
     lum_ratio_alpha_to_beta = 2.87
@@ -222,11 +222,10 @@ def calc_sfr(galaxy_dictionary, z, wcs_step, include_outflow=False, Av=None):
     y = wcs_step[1] *(units.arcsec)
 
     print('Spaxel Area:', (x*y)*(proper_dist)**2)
-    print(' ')
 
     sfr_surface_density = sfr/((x*y)*(proper_dist**2))
     sfr_surface_density_err = sfr_err/((x*y)*(proper_dist**2))
 
-    print(sfr.unit)
+    print('SFR units:', sfr.unit)
 
     return sfr.value, sfr_err.value, total_sfr.value, sfr_surface_density.value, sfr_surface_density_err.value
