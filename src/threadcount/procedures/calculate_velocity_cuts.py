@@ -303,7 +303,7 @@ def sigma_to_vel_disp(gal_sigma, gal_center):
 # VELOCITY BANDS
 #-------------------------------------------------------------------------------
 
-def get_velocity_band_flux(vel_vec, wave, residuals, vel_start, vel_end, average_noise):
+def get_velocity_band_flux(index, vel_vec, wave, residuals, vel_start, vel_end):
     """
     Gets the flux in a velocity band using the residuals from a single emission
     line, from vel_start to vel_end
@@ -311,6 +311,8 @@ def get_velocity_band_flux(vel_vec, wave, residuals, vel_start, vel_end, average
 
     Parameters
     ----------
+    index : list of int
+        the index location of the emission line in the data cube [i,j]
     vel_vec : :obj:'~numpy.ndarray'
         Vector of velocities
     wave : :obj:'~numpy.ndarray'
@@ -332,7 +334,8 @@ def get_velocity_band_flux(vel_vec, wave, residuals, vel_start, vel_end, average
     """
     #mask flux not in the velocity band
     vel_band_mask = (vel_vec < -vel_start) & (vel_vec > -vel_end)
-    residuals_masked = ma.masked_where(~vel_band_mask, residuals)
+    residuals_masked = ma.masked_where(~vel_band_mask, residuals.data[:,index[0],index[1]])
+    residuals_var_masked = ma.masked_where(~vel_band_mask, residuals.var[:,index[0],index[1]])
 
     #get the wavelength range we're integrating over
     try:
