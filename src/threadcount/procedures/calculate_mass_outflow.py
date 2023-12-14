@@ -24,7 +24,7 @@ importlib.reload(calc_sfr)
 
 
 
-def calc_outflow_mass(galaxy_dictionary, z, n_e=100):
+def calc_outflow_mass(galaxy_dictionary, z, n_e=100, Av=None):
     """
     Calculates the mass outflow using the equation:
         M_out = (1.36m_H)/(gamma_Hbeta n_e) * L_Halpha,broad
@@ -44,6 +44,11 @@ def calc_outflow_mass(galaxy_dictionary, z, n_e=100):
     n_e : float
         the electron density.  Default is 100, Davies+2019 used 380, so I used
         that in Reichardt Chu+2022.
+
+    Av : :obj:'~numpy.ndarray' or None
+        the total extinction for the galaxy, measured in each spaxel.  Default
+        is None; if set as None will not apply an extinction correction to the
+        outflow.
 
     Returns
     -------
@@ -82,9 +87,15 @@ def calc_outflow_mass(galaxy_dictionary, z, n_e=100):
     L_Hbeta = (outflow_flux*(4*np.pi*(dist**2))).to('erg/s')
     L_Hbeta_err = (outflow_flux_err*(4*np.pi*(dist**2))).to('erg/s')
 
+    #if correcting for extinction
+    if Av is not None:
+        A_Hbeta = calc_sfr.calc_hbeta_extinction(Av)
+    else:
+        A_Hbeta = 0.0
+
     #do the whole calculation
-    mout = (1.36*m_H) / (gamma_Hbeta*n_e) * lum_ratio_alpha_to_beta * L_Hbeta
-    mout_err = (1.36*m_H) / (gamma_Hbeta*n_e) * lum_ratio_alpha_to_beta * L_Hbeta_err
+    mout = (1.36*m_H) / (gamma_Hbeta*n_e) * lum_ratio_alpha_to_beta * L_Hbeta * 10**(0.4*A_Hbeta)
+    mout_err = (1.36*m_H) / (gamma_Hbeta*n_e) * lum_ratio_alpha_to_beta * L_Hbeta_err * 10**(0.4*A_Hbeta)
 
     #decompose the units to solar masses
     mout = mout.to(u.solMass)
@@ -93,7 +104,7 @@ def calc_outflow_mass(galaxy_dictionary, z, n_e=100):
     return mout, mout_err
 
 
-def calc_mass_outflow_rate(galaxy_dictionary, z, n_e=100):
+def calc_mass_outflow_rate(galaxy_dictionary, z, n_e=100, Av=None):
     """
     Calculates the mass outflow rate using the equation:
         dM_out = (1.36m_H)/(gamma_Hbeta n_e) * (v_out/R_out) * L_Halpha,broad
@@ -113,7 +124,12 @@ def calc_mass_outflow_rate(galaxy_dictionary, z, n_e=100):
 
     n_e : float
         the electron density.  Default is 100, Davies+2019 used 380, so I used
-        that in Reichardt Chu+2022.
+        that in Reichardt Chu+2022a.
+
+    Av : :obj:'~numpy.ndarray' or None
+        the total extinction for the galaxy, measured in each spaxel.  Default
+        is None; if set as None will not apply an extinction correction to the
+        outflow.
 
     Returns
     -------
@@ -142,6 +158,7 @@ def calc_mass_outflow_rate(galaxy_dictionary, z, n_e=100):
     n_e = n_e * (u.cm)**-3
 
     #v_out comes from whichever line is brightest that you fit with threadcount
+    #assuming here that it is hbeta - may need to add another option later
     vel_disp, vel_disp_err, vel_diff, vel_diff_err, vel_out, vel_out_err = calc_outvel.calc_outflow_vel(galaxy_dictionary)
     #put in the units for the velocity
     vel_out = vel_out * u.km/u.s
@@ -173,21 +190,35 @@ def calc_mass_outflow_rate(galaxy_dictionary, z, n_e=100):
     print('distance:', dist)
     #multiply by 4*pi*d^2 to get rid of the cm
     L_Hbeta = (outflow_flux*(4*np.pi*(dist**2))).to('erg/s')
+    L_Hbeta_err = (outflow_flux_err*(4*np.pi*(dist**2))).to('erg/s')
+
+    #if correcting for extinction
+    if Av is not None:
+        A_Hbeta = calc_sfr.calc_hbeta_extinction(Av)
+    else:
+        A_Hbeta = 0.0
 
     #do the whole calculation
     #dM_out_max = (1.36*m_H) / (gamma_Hbeta*n_e) * (vel_out/R_max) * lum_ratio_alpha_to_beta*L_Hbeta
     #dM_out_min = (1.36*m_H) / (gamma_Hbeta*n_e) * (vel_out/R_min) * lum_ratio_alpha_to_beta*L_Hbeta
-    dM_out = (1.36*m_H) / (gamma_Hbeta*n_e) * (vel_out/R_out) * lum_ratio_alpha_to_beta*L_Hbeta
+    dM_out = (1.36*m_H) / (gamma_Hbeta*n_e) * (vel_out/R_out) * lum_ratio_alpha_to_beta*L_Hbeta*10**(0.4*A_Hbeta)
+
+    dM_out_err = dM_out * np.sqrt((vel_out_err/vel_out)**2 + (L_Hbeta_err/L_Hbeta)**2)
+
+    #if we include the uncertainty on Rout and n_e then we get a much larger uncertainty
+    dM_out_sys_err = dM_out * np.sqrt((vel_out_err/vel_out)**2 + (L_Hbeta_err/L_Hbeta)**2 + (500*u.parsec/R_out)**2 + (50*(u.cm)**-3/n_e)**2)
 
     #decompose the units to g/s
     dM_out = dM_out.to(u.solMass/u.yr)
+    dM_out_err = dM_out_err.to(u.solMass/u.yr)
+    dM_out_sys_err = dM_out_sys_err.to(u.solMass/u.yr)
     #dM_out_max = M_out_max.to(u.g/u.s)
     #dM_out_min = M_out_min.to(u.g/u.s)
 
-    return dM_out #, dM_out_max, dM_out_min
+    return dM_out, dM_out_err, dM_out_sys_err #, dM_out_max, dM_out_min
 
 
-def calc_mass_outflow_flux(galaxy_dictionary, z, wcs_step):
+def calc_mass_outflow_flux(galaxy_dictionary, z, wcs_step, Av=None):
     """
     Calculates the mass outflow flux using the equation:
         Sigma_out = dM_out/area
@@ -207,13 +238,18 @@ def calc_mass_outflow_flux(galaxy_dictionary, z, wcs_step):
     header : FITS header object
         the header from the fits file
 
+    Av : :obj:'~numpy.ndarray' or None
+        the total extinction for the galaxy, measured in each spaxel.  Default
+        is None; if set as None will not apply an extinction correction to the
+        outflow.
+
     Returns
     -------
     sigma_out : :obj:'~numpy.ndarray'
         mass outflow flux in units of solar masses / yr / kpc^2
     """
     #calculate the mass outflow rate
-    dm_out = calc_mass_outflow_rate(galaxy_dictionary, z)
+    dm_out, dm_out_err, dM_out_sys_err = calc_mass_outflow_rate(galaxy_dictionary, z, Av=Av)
 
     #get the proper distance per arcsecond
     proper_dist = cosmo.kpc_proper_per_arcmin(z).to(u.kpc/u.arcsec)
@@ -231,12 +267,13 @@ def calc_mass_outflow_flux(galaxy_dictionary, z, wcs_step):
 
     #divide by the area of the bin
     sigma_out = dm_out/((x*y)*(proper_dist**2))
+    sigma_out_err = dm_out_err/((x*y)*(proper_dist**2))
 
-    return sigma_out #, M_out_max, M_out_min
+    return sigma_out, sigma_out_err #, M_out_max, M_out_min
 
 
 
-def calc_mass_loading_factor(galaxy_dictionary, z, wcs_step):
+def calc_mass_loading_factor(galaxy_dictionary, z, wcs_step, Av=None, extinction_correct_outflow=True):
     """
     Calculates the mass loading factor
         eta = M_out/SFR
@@ -253,6 +290,15 @@ def calc_mass_loading_factor(galaxy_dictionary, z, wcs_step):
     header : FITS header object
         the header from the fits file
 
+    Av : :obj:'~numpy.ndarray' or None
+        the total extinction for the galaxy, measured in each spaxel.  Default
+        is None; if set as None will not apply an extinction correction to the
+        outflow.
+
+    extinction_correct_outflow : boolean
+        whether to apply the extinction correction to the outflow component as
+        well as the SFR calculation.  Default is True.
+
     Returns
     -------
     mlf_out : :obj:'~numpy.ndarray'
@@ -266,19 +312,20 @@ def calc_mass_loading_factor(galaxy_dictionary, z, wcs_step):
     """
     #calculate the mass outflow rate (in solar masses/year)
     #m_out, m_out_max, m_out_min = calc_mass_outflow_rate(OIII_results, OIII_error, hbeta_results, hbeta_error, statistical_results, z)
-    dm_out = calc_mass_outflow_rate(galaxy_dictionary, z)
+    if extinction_correct_outflow == True:
+        dm_out, dm_out_err, dm_out_sys_err = calc_mass_outflow_rate(galaxy_dictionary, z, Av=Av)
+    else:
+        dm_out, dm_out_err, dm_out_sys_err = calc_mass_outflow_rate(galaxy_dictionary, z, Av=None)
 
     #calculate the SFR (I wrote this to give the answer without units...)
     #(I should probably change that!)
-    sfr, sfr_err, total_sfr, sigma_sfr, sigma_sfr_err = calc_sfr.calc_sfr(galaxy_dictionary, z, wcs_step, include_outflow=False)
-
-    #put the units back onto the sfr (M_sun/yr)
-    sfr = sfr * (u.solMass/u.yr)
+    sfr, sfr_err, total_sfr, sigma_sfr, sigma_sfr_err = calc_sfr.calc_sfr(galaxy_dictionary, z, wcs_step, include_outflow=False, Av=Av)
 
     #calculate mass loading factor
     mlf = dm_out/sfr
+    mlf_err = mlf * np.sqrt((dm_out_err/dm_out)**2 + (sfr_err/sfr)**2)
 
     #mlf_max = m_out_max/sfr
     #mlf_min = m_out_min/sfr
 
-    return mlf #, mlf_max, mlf_min
+    return mlf, mlf_err #, mlf_max, mlf_min
