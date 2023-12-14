@@ -501,9 +501,9 @@ def determine_v_end(vel_vec, spec, residuals, gal_sigma_vel=60, noise_level=3.0)
 
     return v_end, average_noise
 
-def calculate_escape_velocity(radius, mass, z):
+def calculate_escape_velocity_pointsource(radius, mass, z):
     """
-    Calculates the escape velocity given a radius and mass
+    Calculates the escape velocity given a radius and mass (assuming point source)
         v_esc = sqrt(2 G M / r)
 
     Parameters
@@ -541,6 +541,66 @@ def calculate_escape_velocity(radius, mass, z):
     v_esc = v_esc.to('km/s')
 
     return v_esc
+
+def calculate_escape_velocity(mass):
+    """
+    Calculates the escape velocity given stellar mass
+        v_esc = 3 v_circ
+
+    Parameters
+    ----------
+    mass : float
+        The stellar mass of the galaxy in solar masses (without units)
+
+    Returns
+    -------
+    v_esc : astropy.units.quantity.Quantity
+        The escape velocity in km/s (includes the units)
+    """
+    #give mass units
+    #mass = mass * units.solMass
+
+    #for rotation dominated galaxies in SAMI from Tiley+18
+    log_vcirc = 2 + (np.log10(mass)-9.66)/4
+    vcirc = 10**log_vcirc
+
+    #calculate escape velocity
+    v_esc = 3 * vcirc
+
+    #give the escape velocity units
+    v_esc = v_esc * units.km/units.s
+
+    return v_esc
+
+def calculate_high_velocity(mass):
+    """
+    Calculates the high velocity cutoff given a stellar mass
+        v_esc = 3 v_circ
+
+    Parameters
+    ----------
+    mass : float
+        The stellar mass of the galaxy in solar masses (without units)
+
+    Returns
+    -------
+    v_high : astropy.units.quantity.Quantity
+        The high velocity cutoff in km/s (includes the units)
+    """
+    #give mass units
+    #mass = mass * units.solMass
+
+    #for rotation dominated galaxies in SAMI from Tiley+18
+    log_vcirc = 2 + (np.log10(mass)-9.66)/4
+    vcirc = 10**log_vcirc
+
+    #calculate escape velocity
+    v_high = 1.5 * vcirc
+
+    #give the escape velocity units
+    v_high = v_high * units.km/units.s
+
+    return v_high
 #-------------------------------------------------------------------------------
 # PLOTS
 #-------------------------------------------------------------------------------
