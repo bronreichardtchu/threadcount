@@ -228,4 +228,66 @@ def calc_sfr(galaxy_dictionary, z, wcs_step, include_outflow=False, Av=None):
 
     print('SFR units:', sfr.unit)
 
-    return sfr.value, sfr_err.value, total_sfr.value, sfr_surface_density.value, sfr_surface_density_err.value
+    return sfr, sfr_err, total_sfr, sfr_surface_density, sfr_surface_density_err
+
+
+
+def calc_WISE_sfr(magnitude, mag_err, z):
+    """
+    Calculate the SFR from WISE data Band 4
+
+    Parameters
+    ----------
+    magnitude : array or float
+        the magnitude of the source in WISE magnitudes, m_vega
+    magn_err : array or float
+        the error of the magnitude of the source in WISE magnitudes, m_vega
+    z : array or float
+        the redshift of the source.  If an array, same shape as magnitude array.
+    """
+    #set the zero magnitude flux density for W4 (22.8um)
+    #from Cluver+(2017)
+    flux_zero = 7.871*units.Jy
+
+    #convert from vega magnitudes to source flux density at frequency v
+    #in Janskys (10^-23 erg s^-1 cm^-2 Hz^-1)
+    flux_v = flux_zero * 10**(-magnitude/2.5)
+    flux_v_err = flux_v * abs((-1/2.5)*np.log(10)*mag_err)
+
+    print('flux in Jy:', flux_v)
+
+    flux_v = flux_v.to(units.erg/(units.s*units.Hz*(units.cm)**2))
+    flux_v_err = flux_v_err.to(units.erg/(units.s*units.Hz*(units.cm)**2))
+
+    #band 4 central frequency
+    band_freq = (22.8*units.um).to('Hz', equivalencies=units.spectral())
+
+    ##now get rid of the cm^2
+    #get the Hubble constant at z=0; this is in km/Mpc/s
+    H_0 = cosmo.H(0)
+    #use d = cz/H0 to find the distance in cm
+    dist = (c*z/H_0).decompose().to('cm')
+    print('distance:', dist.to('Mpc'))
+
+    #convert from flux density to luminosity
+    luminosity = flux_v * (4*np.pi*dist**2) * band_freq
+    lum_err = flux_v_err * (4*np.pi*dist**2) * band_freq
+
+    solar_lum = luminosity.to('solLum')
+    solar_lum_err = lum_err.to('solLum')
+
+    log_solar_lum = np.log10(solar_lum.value)
+    log_solar_lum_err = solar_lum_err/(solar_lum*np.log(10))
+
+    print('Log solar luminosity:', log_solar_lum)
+    print('Log solar luminosity error:', log_solar_lum_err)
+
+    #calculate the log sfr
+    log_sfr = 0.938 * log_solar_lum - 8.43
+    log_sfr_err = 0.938*log_solar_lum_err.value
+
+    sfr = 10**log_sfr
+
+    sfr_err = sfr * abs(np.log(10)*log_sfr_err)
+
+    return sfr, sfr_err
