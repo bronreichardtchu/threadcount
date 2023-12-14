@@ -154,7 +154,9 @@ def create_subcube(cube, center_wavelength=lines.Hb4861, wavelength_range=(-150,
     """
     subcube = cube.select_lambda(
         center_wavelength + wavelength_range[0],
-        center_wavelength + wavelength_range[1])
+        center_wavelength + wavelength_range[1],
+        unit_wave=units.angstrom
+        )
 
     return subcube
 
