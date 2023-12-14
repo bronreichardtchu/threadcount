@@ -189,7 +189,10 @@ def subtract_baseline(spec, this_baseline_range, baseline_fit_type):
         baseline_fit_type=baseline_fit_type)
 
     #subtract the best fit from the data
-    new_spec = spec.data - baseline_fit.best_fit
+    try:
+        new_spec = spec.data - baseline_fit.best_fit
+    except:
+        new_spec = spec.data
 
     return baseline_fit, new_spec
 
