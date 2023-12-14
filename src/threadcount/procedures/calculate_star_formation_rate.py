@@ -20,28 +20,26 @@ from astropy.io import fits
 #-------------------------------------------------------------------------------
 # EXTINCTION CALCULATIONS
 #-------------------------------------------------------------------------------
-def calc_hbeta_extinction(lamdas, z):
+def calc_hbeta_extinction(Av):
     """
     Calculates the H_beta extinction - corrects for the extinction caused by light
     travelling through the dust and gas of the original galaxy, using the
     Cardelli et al. 1989 curves and Av = E(B-V)*Rv.
     The value for Av ~ 2.11 x C(Hbeta) where C(Hbeta) = 0.24 from
-    Lopez-Sanchez et al. 2006 A&A 449.
+    Lopez-Sanchez et al. 2006 A&A 449 (for IRAS08).
 
     Parameters
     ----------
-    lamdas : :obj:'~numpy.ndarray'
-        the wavelength vector
-    z : float
-        redshift
+    Av :
+        the Av values
 
     Returns
     -------
     A_hbeta : float
         the extinction correction factor at the Hbeta line
     """
-    #convert lamdas from Angstroms into micrometers
-    lamdas = lamdas/10000
+    #give the wavelength in micrometers
+    lamdas = 0.4861333 #at Hbeta
 
     #define the equations from the paper
     y = lamdas**(-1) - 1.82
@@ -50,20 +48,9 @@ def calc_hbeta_extinction(lamdas, z):
 
     #define the constants
     Rv = 3.1
-    #TO DO:
-    #this Av is technically for IRAS08 - need a better definition from Hbeta/Hgamma
-    Av = 2.11*0.24
 
     #find A(lambda)
-    A_lam = (a_x + b_x/Rv)*Av
-
-    #find A_hbeta
-    #first redshift the hbeta wavelength and convert to micrometers
-    hbeta = (4861.333*(1+z))/10000
-    #then find in lamdas array
-    index = (np.abs(lamdas - hbeta)).argmin()
-    #use the index to find A_hbeta
-    A_hbeta = A_lam[index]
+    A_hbeta = (a_x + b_x/Rv)*Av
 
     return A_hbeta
 
@@ -140,12 +127,12 @@ def get_arrays(galaxy_dictionary, var_string):
 # SFR CALCULATIONS
 #-------------------------------------------------------------------------------
 
-def calc_sfr(galaxy_dictionary, z, wcs_step, include_outflow=False):
+def calc_sfr(galaxy_dictionary, z, wcs_step, include_outflow=False, Av=None):
     """
     Calculates the star formation rate using Hbeta
     SFR = C_Halpha (L_Halpha / L_Hbeta)_0 x 10^{-0.4A_Hbeta} x L_Hbeta[erg/s]
     The Hbeta flux is calculated using the results from the threadcount fits.
-    Assumes that the extinction has already been corrected.
+
 
     Parameters
     ----------
@@ -193,28 +180,36 @@ def calc_sfr(galaxy_dictionary, z, wcs_step, include_outflow=False):
 
     #add the outflow flux to the total flux if including the outflow in the SFR
     if include_outflow == True:
-        flux_results = np.nansum((flux_results, out_flux_results), axis=0)
-        flux_error = np.sqrt(np.nansum((flux_error**2, out_flux_error**2), axis=0))
+        flux_results = np.nansum((flux_results, outflow_flux), axis=0)
+        flux_error = np.sqrt(np.nansum((flux_error**2, outflow_flux_err**2), axis=0))
 
 
     #give the flux units (10^-16 erg/s/cm^2)
     flux_results = flux_results*10**(-16)*units.erg/(units.s*(units.cm*units.cm))
     flux_error = flux_error*10**(-16)*units.erg/(units.s*(units.cm*units.cm))
 
+    print('total flux density:', np.nansum(flux_results))
+
+
     #now get rid of the cm^2
     #get the Hubble constant at z=0; this is in km/Mpc/s
     H_0 = cosmo.H(0)
     #use d = cz/H0 to find the distance in cm
     dist = (c*z/H_0).decompose().to('cm')
-    print('distance:', dist)
+    print('distance:', dist.to('Mpc'))
 
     #multiply by 4*pi*d^2 to get rid of the cm
     hbeta_luminosity = (flux_results*(4*np.pi*(dist**2))).to('erg/s')
     hbeta_luminosity_err = (flux_error*(4*np.pi*(dist**2))).to('erg/s')
 
     #calculate the star formation rate
-    sfr = c_halpha * lum_ratio_alpha_to_beta * 10**(-0.4*0.0) * (hbeta_luminosity)
-    sfr_err = c_halpha * lum_ratio_alpha_to_beta * 10**(-0.4*0.0) * (hbeta_luminosity_err)
+    if Av is not None:
+        A_Hbeta = calc_hbeta_extinction(Av)
+    else:
+        A_Hbeta = 0.0
+
+    sfr = c_halpha * lum_ratio_alpha_to_beta * 10**(0.4*A_Hbeta) * (hbeta_luminosity)
+    sfr_err = c_halpha * lum_ratio_alpha_to_beta * 10**(0.4*A_Hbeta) * (hbeta_luminosity_err)
 
     total_sfr = np.nansum(sfr)
 
